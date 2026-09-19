@@ -1,0 +1,7 @@
+# Keep transitive dependencies reproducible for the pinned LangChain stack.
+langchain-core==0.3.72
+langchain-text-splitters==0.3.9
+langsmith==0.4.8
+httpx==0.28.1
+requests==2.32.3
+zstandard==0.23.0
