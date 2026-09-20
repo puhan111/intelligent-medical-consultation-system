@@ -4,6 +4,7 @@ import pytest
 
 from app.services.common.rag_evaluation import (
     RetrievalCase,
+    check_retrieval_thresholds,
     evaluate_retrieval,
     load_cases,
 )
@@ -103,3 +104,33 @@ def test_versioned_fixture_dataset_contains_required_scenarios():
         "missing_fact",
     }
     assert sum(case.expectation == "abstain" for case in cases) == 1
+
+
+def test_retrieval_thresholds_report_only_regressions():
+    summary = {
+        "hit_rate_at_1": 1.0,
+        "mean_recall_at_1": 0.75,
+        "mrr_at_1": 0.5,
+    }
+
+    failures = check_retrieval_thresholds(
+        summary,
+        1,
+        min_hit_rate=1.0,
+        min_recall=0.8,
+        min_mrr=0.5,
+    )
+
+    assert failures == ["mean_recall_at_1=0.7500 is below 0.8000"]
+
+
+@pytest.mark.parametrize("minimum", [-0.1, 1.1])
+def test_retrieval_thresholds_must_be_probabilities(minimum):
+    summary = {
+        "hit_rate_at_1": 1.0,
+        "mean_recall_at_1": 1.0,
+        "mrr_at_1": 1.0,
+    }
+
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        check_retrieval_thresholds(summary, 1, min_hit_rate=minimum)

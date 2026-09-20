@@ -75,8 +75,8 @@ class Settings(BaseSettings):
     DASHSCOPE_API_KEY: str = "dummy-api-key"
     DASHSCOPE_EMBEDDING_MODEL: str = "text-embedding-v3"
     DASHSCOPE_RERANK_MODEL: str = "gte-rerank-v2"
-    # gte-rerank-v2 需走业务空间专属 endpoint（阿里云百炼模型广场确认，与默认 dashscope.aliyuncs.com 不同）
-    DASHSCOPE_RERANK_BASE_URL: str = "https://ws-5ixbk2y1nb2t7u3m.cn-beijing.maas.aliyuncs.com/api/v1"
+    # 留空时使用DashScope SDK默认地址；如使用业务空间专属地址，必须与API Key归属一致。
+    DASHSCOPE_RERANK_BASE_URL: str = ""
     DEEPSEEK_API_KEY: str = "dummy-api-key"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
     DEEPSEEK_MODEL: str = "deepseek-chat"

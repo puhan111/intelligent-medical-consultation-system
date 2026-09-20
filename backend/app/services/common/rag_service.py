@@ -44,11 +44,14 @@ def _rerank(query: str, documents: List[str]) -> List[int]:
     调用 DashScope gte-rerank-v2 对候选文档重排，返回按相关性降序排列的原始索引列表
     rerank 模型走业务空间专属 endpoint，与 embedding 使用的默认 endpoint 不同
     """
+    request_kwargs = {}
+    if settings.DASHSCOPE_RERANK_BASE_URL.strip():
+        request_kwargs["base_address"] = settings.DASHSCOPE_RERANK_BASE_URL
     response = dashscope.TextReRank.call(
         model=settings.DASHSCOPE_RERANK_MODEL,
         query=query,
         documents=documents,
-        base_address=settings.DASHSCOPE_RERANK_BASE_URL,
+        **request_kwargs,
     )
     if response.status_code != 200:
         raise RuntimeError(f"DashScope rerank failed: {response.code} {response.message}")
@@ -67,22 +70,32 @@ async def _vector_search(db: AsyncSession, query_vector: List[float], candidate_
     return result.scalars().all()
 
 
+def _build_fulltext_web_query(query: str) -> str:
+    """Build a safe OR query from segmented alphanumeric terms."""
+    terms = []
+    for token in segment(query).split():
+        normalized = "".join(character for character in token if character.isalnum())
+        if normalized and normalized not in terms:
+            terms.append(normalized)
+    return " OR ".join(terms)
+
+
 async def _fulltext_search(db: AsyncSession, query: str, candidate_n: int, source_type: Optional[str]):
-    """Postgres 全文检索候选池（jieba 分词 + plainto_tsquery），按相关性排序"""
-    segmented_query = segment(query)
-    if not segmented_query:
+    """Postgres 全文检索候选池（jieba分词 + OR召回），按相关性排序。"""
+    web_query = _build_fulltext_web_query(query)
+    if not web_query:
         return []
 
     sql = """
         SELECT id, source, content, metadata
         FROM knowledge_chunks
-        WHERE content_tsv @@ plainto_tsquery('simple', :query)
+        WHERE content_tsv @@ websearch_to_tsquery('simple', :query)
     """
-    params = {"query": segmented_query, "limit": candidate_n}
+    params = {"query": web_query, "limit": candidate_n}
     if source_type:
         sql += " AND metadata->>'source_type' = :source_type"
         params["source_type"] = source_type
-    sql += " ORDER BY ts_rank(content_tsv, plainto_tsquery('simple', :query)) DESC LIMIT :limit"
+    sql += " ORDER BY ts_rank(content_tsv, websearch_to_tsquery('simple', :query)) DESC LIMIT :limit"
 
     result = await db.execute(text(sql), params)
     return result.fetchall()
@@ -123,10 +136,17 @@ async def search(
             "candidate_n": candidate_n,
         })
     # DashScope SDK 是同步接口，放入线程池，避免阻塞 FastAPI 事件循环。
+    stage_start = time.monotonic()
     query_vector = await asyncio.to_thread(_embed, query)
+    embedding_latency_ms = int((time.monotonic() - stage_start) * 1000)
 
+    stage_start = time.monotonic()
     vector_chunks = await _vector_search(db, query_vector, candidate_n, source_type)
+    vector_search_latency_ms = int((time.monotonic() - stage_start) * 1000)
+
+    stage_start = time.monotonic()
     fulltext_rows = await _fulltext_search(db, query, candidate_n, source_type)
+    fulltext_search_latency_ms = int((time.monotonic() - stage_start) * 1000)
 
     chunk_map = {c.id: c for c in vector_chunks}
     for row in fulltext_rows:
@@ -141,6 +161,9 @@ async def search(
     )
     if diagnostics is not None:
         diagnostics.update({
+            "embedding_latency_ms": embedding_latency_ms,
+            "vector_search_latency_ms": vector_search_latency_ms,
+            "fulltext_search_latency_ms": fulltext_search_latency_ms,
             "vector_ranked_ids": vector_ranked_ids,
             "fulltext_ranked_ids": fulltext_ranked_ids,
             "rrf_ranked_ids": fused_ids,
@@ -149,12 +172,13 @@ async def search(
     if rerank and fused_ids:
         candidates = [chunk_map[cid] for cid in fused_ids]
         documents = [c.content for c in candidates]
+        rerank_start = time.monotonic()
         try:
             rerank_order = await asyncio.to_thread(_rerank, query, documents)
             final_chunks = [candidates[i] for i in rerank_order[:top_k]]
             if diagnostics is not None:
                 diagnostics["rerank_applied"] = True
-        except Exception:
+        except Exception as exc:
             # Rerank 是精排增强层，不应因其不可用让整个 RAG 和 Agent 失败。
             logger.warning(
                 "Rerank failed, falling back to RRF results: query=%r",
@@ -164,6 +188,13 @@ async def search(
             final_chunks = [chunk_map[cid] for cid in fused_ids[:top_k]]
             if diagnostics is not None:
                 diagnostics["rerank_fallback"] = True
+                diagnostics["rerank_error_type"] = type(exc).__name__
+                diagnostics["rerank_error_message"] = str(exc)[:500]
+        finally:
+            if diagnostics is not None:
+                diagnostics["rerank_latency_ms"] = int(
+                    (time.monotonic() - rerank_start) * 1000
+                )
     else:
         final_chunks = [chunk_map[cid] for cid in fused_ids[:top_k]]
 
