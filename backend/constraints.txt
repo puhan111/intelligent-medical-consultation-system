@@ -5,3 +5,12 @@ langsmith==0.4.8
 httpx==0.28.1
 requests==2.32.3
 zstandard==0.23.0
+
+# MCP transport compatible with the existing Starlette/AnyIO stack.
+sse-starlette==2.3.6
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+referencing==0.37.0
+rpds-py==2026.6.3
+PyJWT==2.14.0
+pywin32==312; sys_platform == "win32"
