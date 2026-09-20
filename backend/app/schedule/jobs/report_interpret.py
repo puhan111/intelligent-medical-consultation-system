@@ -60,34 +60,44 @@ async def _interpret(session_factory, report_id: int) -> str:
             logger.info(f"Report {report_id} already interpreted, skip")
             return "already_completed"
 
-        chunks = await rag_service.search(
-            db,
-            query=f"{report.type} 报告解读",
-            top_k=5,
-            source_type="医学参考资料",
-            agent_type="report_interpret",
-        )
-        reference_chunks = [c.content for c in chunks]
-        referenced_ids = [c.id for c in chunks]
-
-        prompt = load_prompt(
-            "report_interpret",
-            report_type=report.type,
-            report_content=json.dumps(report.content, ensure_ascii=False, indent=2),
-            reference_chunks=reference_chunks,
-        )
-
         try:
+            chunks = await rag_service.search(
+                db,
+                query=f"{report.type} 报告解读",
+                top_k=5,
+                source_type="医学参考资料",
+                agent_type="report_interpret",
+            )
+            reference_chunks = [c.content for c in chunks]
+            referenced_ids = [c.id for c in chunks]
+
+            prompt = load_prompt(
+                "report_interpret",
+                report_type=report.type,
+                report_content=json.dumps(report.content, ensure_ascii=False, indent=2),
+                reference_chunks=reference_chunks,
+            )
+
             # llm_service.call 内部已用 tenacity 做 3 次指数退避重试，这里不再对 LLMServiceError 做外层重试
             # 否则会变成 3x3=9 次调用才彻底失败
             llm_result = await llm_service.call(db, prompt, agent_type="report_interpret")
+
+            passed, reason = review_content(llm_result.content)
         except LLMServiceError as e:
             logger.error(f"LLM call failed for report_id={report_id}: {e}")
             report.interpretation_status = "failed"
             await db.commit()
             return "failed"
+        except Exception as e:
+            logger.exception(
+                "Report interpretation pipeline failed: report_id=%s error=%s",
+                report_id,
+                e,
+            )
+            report.interpretation_status = "failed"
+            await db.commit()
+            return "failed"
 
-        passed, reason = review_content(llm_result.content)
         if not passed:
             logger.error(f"Content review failed for report_id={report_id}: {reason}")
             report.interpretation_status = "failed"
