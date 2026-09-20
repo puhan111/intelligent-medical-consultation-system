@@ -95,7 +95,7 @@ class BackofficeAuthService(AuthBase):
     @staticmethod
     async def logout(db: AsyncSession, refresh_token: str) -> None:
         """管理员登出"""
-        payload = AuthBase.verify_token(refresh_token, scope="backoffice")
+        payload = AuthBase.verify_token(refresh_token, scope="refresh")
         if not payload:
             return  # 忽略无效 token
 
