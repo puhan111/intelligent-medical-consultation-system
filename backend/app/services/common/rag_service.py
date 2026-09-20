@@ -139,6 +139,12 @@ async def search(
         vector_ranked_ids,
         fulltext_ranked_ids,
     )
+    if diagnostics is not None:
+        diagnostics.update({
+            "vector_ranked_ids": vector_ranked_ids,
+            "fulltext_ranked_ids": fulltext_ranked_ids,
+            "rrf_ranked_ids": fused_ids,
+        })
 
     if rerank and fused_ids:
         candidates = [chunk_map[cid] for cid in fused_ids]
@@ -179,6 +185,7 @@ async def search(
         diagnostics.update({
             "candidate_count": len(fused_ids),
             "result_count": len(results),
+            "final_result_ids": [result.id for result in results],
             "latency_ms": latency_ms,
         })
     if log_query:

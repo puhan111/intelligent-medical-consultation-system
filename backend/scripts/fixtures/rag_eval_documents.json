@@ -1,0 +1,27 @@
+[
+  {
+    "source": "rag-eval://night-clinic-2026",
+    "source_type": "分诊指引",
+    "content": "[合成评测资料，不代表真实医院信息] 2026版星河门诊夜间呼吸内科的内部代号为蓝鲸-17。"
+  },
+  {
+    "source": "rag-eval://xq9-adult",
+    "source_type": "医学参考资料",
+    "content": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+  },
+  {
+    "source": "rag-eval://xq9-pregnancy",
+    "source_type": "医学参考资料",
+    "content": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，孕期组的复查标签为晨星-P。"
+  },
+  {
+    "source": "rag-eval://protocol-v1",
+    "source_type": "医学参考资料",
+    "content": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+  },
+  {
+    "source": "rag-eval://protocol-v2",
+    "source_type": "医学参考资料",
+    "content": "[合成评测资料，当前版本] Orion流程2026版的确认码为OR-26。"
+  }
+]
