@@ -120,7 +120,7 @@ class ClientAuthService(AuthBase):
     @staticmethod
     async def logout(db: AsyncSession, refresh_token: str) -> None:
         """患者登出"""
-        payload = AuthBase.verify_token(refresh_token, scope="client")
+        payload = AuthBase.verify_token(refresh_token, scope="refresh")
         if not payload:
             return  # 忽略无效 token
 
