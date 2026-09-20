@@ -13,7 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.session import async_session
 from app.models.knowledge_chunk import KnowledgeChunk
-from app.services.common.rag_evaluation import evaluate_retrieval, load_cases
+from app.services.common.rag_evaluation import (
+    check_retrieval_thresholds,
+    evaluate_retrieval,
+    load_cases,
+)
 from app.services.common.rag_service import search
 
 
@@ -27,6 +31,9 @@ def parse_args():
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--rerank", action="store_true")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--min-hit-rate", type=float)
+    parser.add_argument("--min-recall", type=float)
+    parser.add_argument("--min-mrr", type=float)
     return parser.parse_args()
 
 
@@ -127,6 +134,11 @@ async def run(cases_path: Path, top_k: int, rerank: bool) -> dict:
 async def main() -> None:
     args = parse_args()
     result = await run(args.cases, args.top_k, args.rerank)
+    result["configuration"]["thresholds"] = {
+        "min_hit_rate": args.min_hit_rate,
+        "min_recall": args.min_recall,
+        "min_mrr": args.min_mrr,
+    }
     output = args.output
     if output is None:
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -135,6 +147,17 @@ async def main() -> None:
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
     print(f"saved_to={output}")
+    failures = check_retrieval_thresholds(
+        result["summary"],
+        args.top_k,
+        min_hit_rate=args.min_hit_rate,
+        min_recall=args.min_recall,
+        min_mrr=args.min_mrr,
+    )
+    if failures:
+        for failure in failures:
+            print(f"threshold_failure={failure}")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

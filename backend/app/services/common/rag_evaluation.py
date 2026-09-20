@@ -123,3 +123,29 @@ def evaluate_retrieval(
         ),
     }
     return {"top_k": top_k, "summary": summary, "cases": details}
+
+
+def check_retrieval_thresholds(
+    summary: Mapping[str, float | int],
+    top_k: int,
+    *,
+    min_hit_rate: float | None = None,
+    min_recall: float | None = None,
+    min_mrr: float | None = None,
+) -> list[str]:
+    """Return human-readable failures for configured retrieval thresholds."""
+    thresholds = {
+        f"hit_rate_at_{top_k}": min_hit_rate,
+        f"mean_recall_at_{top_k}": min_recall,
+        f"mrr_at_{top_k}": min_mrr,
+    }
+    failures = []
+    for metric, minimum in thresholds.items():
+        if minimum is None:
+            continue
+        if not 0.0 <= minimum <= 1.0:
+            raise ValueError(f"{metric} threshold must be between 0 and 1")
+        actual = float(summary[metric])
+        if actual < minimum:
+            failures.append(f"{metric}={actual:.4f} is below {minimum:.4f}")
+    return failures
