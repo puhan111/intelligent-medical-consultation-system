@@ -17,6 +17,7 @@ from app.exceptions.http_exceptions import APIException
 import bleach
 import time
 
+ALLOWED_AUDIO_TYPES = {"mp3", "wav", "m4a", "ogg", "flac"}
 
 
 class FileContent(BaseModel):
@@ -78,7 +79,7 @@ async def process_multiple_files(
 ) -> List[FileContent]:
     """处理多个上传文件并存储到 S3"""
     processed_files = []
-    max_file_size = 100 * 1024 * 1024  # 25 MB
+    max_file_size = 100 * 1024 * 1024  # 100 MB
 
     for file in files:
         # 检查文件大小

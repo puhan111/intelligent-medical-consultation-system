@@ -115,15 +115,11 @@ def create_app():
     # 注册后台路由
     register_routes(app, get_backoffice_routes())
 
-    # 注册通用路由
-    register_routes(app, get_common_routes())
-
-    # 挂载分离的文档应用
-    client_docs_app = create_client_app()
-    backoffice_docs_app = create_backoffice_app()
-
-    app.mount("/client", client_docs_app)
-    app.mount("/backoffice", backoffice_docs_app)
+    # API文档只用于开发和预览；生产环境不暴露路由清单与后台OpenAPI。
+    if settings.ENV in ["development", "preview"]:
+        register_routes(app, get_common_routes())
+        app.mount("/client", create_client_app())
+        app.mount("/backoffice", create_backoffice_app())
 
     @app.exception_handler(APIException)
     async def api_exception_handler(request: Request, exc: APIException):

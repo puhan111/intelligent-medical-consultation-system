@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from pydantic import ValidationError
 
 from app.core.config import Settings
@@ -32,3 +33,14 @@ def test_production_parses_explicit_cors_origins():
         "https://patient.example.com",
         "https://admin.example.com",
     ]
+
+
+def test_example_environment_does_not_pin_a_rerank_workspace():
+    example = Path(__file__).resolve().parents[2] / ".env.example"
+    values = dict(
+        line.split("=", 1)
+        for line in example.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#") and "=" in line
+    )
+
+    assert values["DASHSCOPE_RERANK_BASE_URL"] == ""

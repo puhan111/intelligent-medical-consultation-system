@@ -1,6 +1,7 @@
 from app.route import create_app
 from app.core.config import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -16,5 +17,8 @@ if __name__ == "__main__":
         port=settings.API_PORT,
         reload=settings.ENV == "development",  # 开发环境启用热重载
         workers=1 if settings.ENV == "development" else 4,  # 生产环境使用多进程
-        env_file=".env"  # 使用环境变量文件
+        env_file=".env",  # 使用环境变量文件
+        proxy_headers=True,
+        # 默认仅信任本机代理；Compose中应用端口不对外发布，可显式设为*信任同网络Nginx。
+        forwarded_allow_ips=os.getenv("FORWARDED_ALLOW_IPS", "127.0.0.1"),
     )
