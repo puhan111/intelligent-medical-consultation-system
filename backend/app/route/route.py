@@ -20,9 +20,7 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 # 根据环境设置 CORS 允许来源
-ALLOWED_ORIGINS = ["*"] if settings.ENV == "development" or settings.ENV == "preview" else [
-    "*"  # TODO: 生产环境请替换为具体域名
-]
+ALLOWED_ORIGINS = settings.allowed_origins
 
 
 @asynccontextmanager

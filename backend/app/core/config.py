@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -9,6 +10,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Template"
     API_V1_STR: str = "/api/v1"
     API_PORT: int = 8001
+    CORS_ORIGINS: str = ""
 
     # Docker 端口配置（可选，用于 docker-compose）
     REDIS_EXTERNAL_PORT: int = 6386
@@ -86,6 +88,30 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"  # 可选，指定编码
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        if self.ENV.lower() in {"development", "preview", "test"}:
+            return ["*"]
+        return [item.strip() for item in self.CORS_ORIGINS.split(",") if item.strip()]
+
+    @model_validator(mode="after")
+    def reject_insecure_production_defaults(self):
+        if self.ENV.lower() != "production":
+            return self
+        placeholders = {
+            "SECRET_KEY": {"your-secret-key-change-in-production", "dev_secret_key_please_change_in_production_0123456789abcdef"},
+            "DASHSCOPE_API_KEY": {"dummy-api-key", "your_dashscope_api_key"},
+            "DEEPSEEK_API_KEY": {"dummy-api-key", "your_deepseek_api_key"},
+        }
+        for field, invalid_values in placeholders.items():
+            if getattr(self, field) in invalid_values:
+                raise ValueError(f"{field} must be configured for production")
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError("SECRET_KEY must contain at least 32 characters in production")
+        if not self.allowed_origins or "*" in self.allowed_origins:
+            raise ValueError("CORS_ORIGINS must list explicit origins in production")
+        return self
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
