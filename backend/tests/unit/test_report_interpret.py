@@ -14,11 +14,16 @@ class _ScalarResult:
     def scalar_one_or_none(self):
         return self._value
 
+    def scalar(self):
+        return self._value
+
 
 class _DatabaseSession:
-    def __init__(self, report):
+    def __init__(self, report, *, lock_acquired=True):
         self.report = report
+        self.lock_acquired = lock_acquired
         self.commit_count = 0
+        self.execute_calls = []
 
     async def __aenter__(self):
         return self
@@ -26,7 +31,10 @@ class _DatabaseSession:
     async def __aexit__(self, exc_type, exc, traceback):
         return False
 
-    async def execute(self, _statement):
+    async def execute(self, statement, parameters=None):
+        self.execute_calls.append((str(statement), parameters))
+        if "pg_try_advisory_xact_lock" in str(statement):
+            return _ScalarResult(self.lock_acquired)
         return _ScalarResult(self.report)
 
     async def commit(self):
@@ -78,6 +86,27 @@ def test_completed_report_is_skipped_without_calling_rag(monkeypatch):
 
     assert result == "already_completed"
     assert db.commit_count == 0
+
+
+def test_duplicate_task_skips_before_loading_report_or_calling_rag(monkeypatch):
+    db = _DatabaseSession(_pending_report(), lock_acquired=False)
+
+    async def unexpected_search(*_args, **_kwargs):
+        pytest.fail("duplicate task must not call RAG")
+
+    monkeypatch.setattr(report_interpret.rag_service, "search", unexpected_search)
+
+    result = asyncio.run(report_interpret._interpret(_SessionFactory(db), report_id=101))
+
+    assert result == "already_processing"
+    assert db.commit_count == 0
+    assert len(db.execute_calls) == 1
+    statement, parameters = db.execute_calls[0]
+    assert "pg_try_advisory_xact_lock" in statement
+    assert parameters == {
+        "namespace": report_interpret.REPORT_INTERPRET_LOCK_NAMESPACE,
+        "report_id": 101,
+    }
 
 
 def test_successful_interpretation_saves_content_references_and_completion_time(monkeypatch):
