@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.celery_app import celery_app
 from app.db.base import create_scheduler_engine, create_scheduler_session_factory
@@ -15,6 +15,9 @@ from app.services.common.prompt_loader import load_prompt
 from app.services.common.redis import redis_client
 
 logger = logging.getLogger("report_interpret")
+
+# PostgreSQL 双整数咨询锁的命名空间，避免与其他业务锁发生键冲突。
+REPORT_INTERPRET_LOCK_NAMESPACE = 1_381_320_020
 
 
 @celery_app.task(name="app.schedule.jobs.report_interpret.execute")
@@ -50,6 +53,26 @@ async def _close_redis() -> None:
 
 async def _interpret(session_factory, report_id: int) -> str:
     async with session_factory() as db:
+        lock_acquired = (
+            await db.execute(
+                text(
+                    "SELECT pg_try_advisory_xact_lock("
+                    ":namespace, :report_id)"
+                ),
+                {
+                    "namespace": REPORT_INTERPRET_LOCK_NAMESPACE,
+                    "report_id": report_id,
+                },
+            )
+        ).scalar()
+        if not lock_acquired:
+            logger.info(
+                "Report interpretation already running, skip duplicate task: "
+                "report_id=%s",
+                report_id,
+            )
+            return "already_processing"
+
         report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
         if report is None:
             logger.error(f"Report not found: report_id={report_id}")
