@@ -8,6 +8,7 @@ Alembic 迁移负责维护数据库表结构，本脚本负责初始化登录后
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -47,30 +48,41 @@ async def create_admin(
 
 
 async def main() -> None:
+    passwords = {
+        "superadmin": os.environ.get("DEMO_SUPERADMIN_PASSWORD"),
+        "pharmacist": os.environ.get("DEMO_PHARMACIST_PASSWORD"),
+        "cashier": os.environ.get("DEMO_CASHIER_PASSWORD"),
+        "lab": os.environ.get("DEMO_LAB_PASSWORD"),
+    }
+    missing = [name for name, password in passwords.items() if not password]
+    if missing:
+        raise RuntimeError(
+            "Set demo account passwords before initialization: " + ", ".join(missing)
+        )
     await create_admin(
         email="superadmin@test.com",
-        password="admin123",
+        password=passwords["superadmin"],
         first_name="Super",
         last_name="Admin",
         role=UserRole.SUPERADMIN,
     )
     await create_admin(
         email="pharmacist1@test.com",
-        password="pharm123",
+        password=passwords["pharmacist"],
         first_name="Pharmacist",
         last_name="Wang",
         role=UserRole.PHARMACIST,
     )
     await create_admin(
         email="cashier1@test.com",
-        password="cashier123",
+        password=passwords["cashier"],
         first_name="Cashier",
         last_name="Li",
         role=UserRole.CASHIER,
     )
     await create_admin(
         email="lab1@test.com",
-        password="lab123",
+        password=passwords["lab"],
         first_name="Lab",
         last_name="Chen",
         role=UserRole.LAB,
