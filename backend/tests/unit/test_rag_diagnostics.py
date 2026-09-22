@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from app.services.common import rag_service
+from app.models.knowledge_chunk import KnowledgeChunk
 
 
 def test_fulltext_query_uses_distinct_or_terms():
@@ -100,6 +101,32 @@ def test_search_diagnostics_preserve_each_ranking_stage(monkeypatch):
         )
     )
     assert [result.id for result in results] == [2, 1]
+
+
+def test_search_reads_metadata_from_real_orm_attribute(monkeypatch):
+    chunk = KnowledgeChunk(
+        id=7,
+        source="orm-source",
+        content="orm-content",
+        embedding=[0.1, 0.2],
+        chunk_metadata={"source_type": "医学参考资料"},
+    )
+    monkeypatch.setattr(rag_service, "_embed", lambda _query: [0.1, 0.2])
+
+    async def vector_search(*_args, **_kwargs):
+        return [chunk]
+
+    async def fulltext_search(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(rag_service, "_vector_search", vector_search)
+    monkeypatch.setattr(rag_service, "_fulltext_search", fulltext_search)
+
+    results = asyncio.run(
+        rag_service.search(db=object(), query="医学", top_k=1, log_query=False)
+    )
+
+    assert results[0].chunk_metadata == {"source_type": "医学参考资料"}
 
 
 def test_search_diagnostics_record_rerank_latency(monkeypatch):

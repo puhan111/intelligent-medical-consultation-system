@@ -21,6 +21,11 @@ from app.mcp_server import create_app
 from app.services.common import mcp_readonly as service
 
 
+@pytest.fixture(autouse=True)
+def stub_mcp_rate_limit(monkeypatch):
+    monkeypatch.setattr(service, "enforce_rate_limit", AsyncMock())
+
+
 class SyntheticDatabase:
     """Interpret the real SQL predicates over two synthetic patients/reports."""
 
