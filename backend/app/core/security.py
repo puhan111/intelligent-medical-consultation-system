@@ -49,9 +49,18 @@ class AuthBase:
             payload = jwt.decode(
                 token,
                 settings.SECRET_KEY,
-                algorithms=[settings.ALGORITHM]
+                algorithms=[settings.ALGORITHM],
+                options={"require_exp": True, "require_sub": True},
             )
+            if not isinstance(payload.get("scope"), str):
+                return None
             if scope and payload.get("scope") != scope:
+                return None
+            try:
+                subject = int(payload["sub"])
+            except (KeyError, TypeError, ValueError):
+                return None
+            if subject <= 0 or subject > 2_147_483_647:
                 return None
             return payload
         except JWTError:
