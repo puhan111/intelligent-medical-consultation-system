@@ -42,7 +42,7 @@ EXPOSE 8001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8001/api/v1/config/health || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/config/health')" || exit 1
 
 # 启动命令
 CMD ["python", "main.py"]
