@@ -18,6 +18,22 @@ class RecordingDatabase:
     def add(self, value):
         self.added.append(value)
 
+    async def commit(self):
+        pass
+
+
+class AsyncChunks:
+    def __init__(self, chunks):
+        self._chunks = chunks
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not self._chunks:
+            raise StopAsyncIteration
+        return self._chunks.pop(0)
+
 
 def timeout_error(secret="private-prompt-or-key"):
     error = APITimeoutError(request=httpx.Request("POST", "https://model.invalid"))
@@ -133,6 +149,42 @@ async def test_invalid_provider_response_has_stable_redacted_failure(monkeypatch
 
     with pytest.raises(LLMServiceError):
         await llm_service.call(db, "private-patient-prompt", "triage")
+
+    assert db.added[0].status == "invalid_response"
+    assert db.added[0].error_message == "LLMResponseError"
+
+
+@pytest.mark.asyncio
+async def test_stream_creation_retries_before_any_content(monkeypatch):
+    attempts = 0
+
+    async def fail(**_kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise connection_error()
+
+    monkeypatch.setattr(llm_service._async_client.chat.completions, "create", fail)
+    create_without_wait = llm_service._create_deepseek_stream.retry_with(wait=wait_none())
+
+    with pytest.raises(APIConnectionError):
+        await create_without_wait([{"role": "user", "content": "hello"}], 30)
+
+    assert attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_empty_stream_is_recorded_as_invalid_response(monkeypatch):
+    db = RecordingDatabase()
+    monkeypatch.setattr(llm_service, "_check_budget", AsyncMock())
+    monkeypatch.setattr(
+        llm_service,
+        "_create_deepseek_stream",
+        AsyncMock(return_value=AsyncChunks([])),
+    )
+
+    with pytest.raises(LLMServiceError):
+        async for _chunk in llm_service.stream(db, "private prompt", "triage"):
+            pass
 
     assert db.added[0].status == "invalid_response"
     assert db.added[0].error_message == "LLMResponseError"

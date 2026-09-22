@@ -224,11 +224,25 @@ function agentLabel(value?: string | null) {
 }
 
 function statusLabel(value: string) {
-  return { success: '成功', error: '错误', timeout: '超时' }[value] ?? value
+  return {
+    success: '成功',
+    error: '错误',
+    timeout: '超时',
+    connection_error: '连接失败',
+    rate_limited: '请求限流',
+    invalid_response: '响应无效',
+  }[value] ?? value
 }
 
 function statusType(value: string) {
-  return ({ success: 'success', error: 'danger', timeout: 'warning' } as Record<string, any>)[value] ?? 'info'
+  return ({
+    success: 'success',
+    error: 'danger',
+    timeout: 'warning',
+    connection_error: 'danger',
+    rate_limited: 'warning',
+    invalid_response: 'danger',
+  } as Record<string, any>)[value] ?? 'info'
 }
 
 function barHeight(value: number) {

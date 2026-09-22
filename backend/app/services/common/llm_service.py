@@ -194,6 +194,23 @@ async def call(
         raise LLMServiceError(message=FALLBACK_RESPONSES.get(agent_type) or "LLM service unavailable") from e
 
 
+@retry(
+    retry=retry_if_exception_type((APITimeoutError, APIConnectionError, RateLimitError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    reraise=True,
+)
+async def _create_deepseek_stream(messages: list[dict], timeout: int):
+    """Retry only before streaming starts, so partial output is never replayed."""
+    return await _async_client.chat.completions.create(
+        model=settings.DEEPSEEK_MODEL,
+        messages=messages,
+        timeout=timeout,
+        stream=True,
+        stream_options={"include_usage": True},
+    )
+
+
 async def stream(
     db: AsyncSession,
     prompt: str,
@@ -217,15 +234,10 @@ async def stream(
     start = time.monotonic()
     input_tokens = 0
     output_tokens = 0
+    has_content = False
 
     try:
-        response = await _async_client.chat.completions.create(
-            model=settings.DEEPSEEK_MODEL,
-            messages=messages,
-            timeout=timeout,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
+        response = await _create_deepseek_stream(messages, timeout)
 
         async for chunk in response:
             if chunk.usage:
@@ -235,7 +247,11 @@ async def stream(
             if chunk.choices:
                 content = chunk.choices[0].delta.content
                 if content:
+                    has_content = True
                     yield content
+
+        if not has_content:
+            raise LLMResponseError("empty provider stream")
 
         latency_ms = int((time.monotonic() - start) * 1000)
         db.add(LLMCallLog(
@@ -249,7 +265,7 @@ async def stream(
         await _record_budget_usage(input_tokens + output_tokens)
         await db.commit()
 
-    except (APITimeoutError, APIConnectionError, RateLimitError) as e:
+    except (APITimeoutError, APIConnectionError, RateLimitError, LLMResponseError) as e:
         latency_ms = int((time.monotonic() - start) * 1000)
         status = _failure_status(e)
         error_type = type(e).__name__

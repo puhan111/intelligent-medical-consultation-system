@@ -48,7 +48,16 @@ async def get_overview(
                     func.sum(case((LLMCallLog.status == "success", 1), else_=0)), 0
                 ),
                 func.coalesce(
-                    func.sum(case((LLMCallLog.status == "error", 1), else_=0)), 0
+                    func.sum(
+                        case(
+                            (
+                                LLMCallLog.status.notin_(("success", "timeout")),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
                 ),
                 func.coalesce(
                     func.sum(case((LLMCallLog.status == "timeout", 1), else_=0)), 0
