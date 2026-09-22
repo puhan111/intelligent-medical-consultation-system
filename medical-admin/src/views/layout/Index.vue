@@ -21,6 +21,9 @@
         <el-menu-item v-if="isSuperadmin" index="/ai-monitor">
           <span>AI 运行监控</span>
         </el-menu-item>
+        <el-menu-item v-if="isSuperadmin" index="/rag-evaluation">
+          <span>RAG 质量评测</span>
+        </el-menu-item>
         <el-menu-item v-if="isDoctor" index="/my-appointments">
           <span>我的接诊</span>
         </el-menu-item>
