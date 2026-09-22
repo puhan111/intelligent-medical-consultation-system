@@ -62,7 +62,14 @@ def _budget_key() -> str:
 
 async def _check_budget() -> None:
     """成本熔断：达到每日预算 80% 记 WARNING，达到 100% 拒绝非核心请求"""
-    used = await redis_client.get(_budget_key())
+    try:
+        used = await redis_client.get(_budget_key())
+    except Exception as error:
+        logger.warning(
+            "LLM budget check unavailable; allowing request: error_type=%s",
+            type(error).__name__,
+        )
+        return
     used = int(used) if used else 0
     budget = settings.LLM_DAILY_TOKEN_BUDGET
 
@@ -80,6 +87,17 @@ async def _record_budget_usage(total_tokens: int) -> None:
     if current == total_tokens:
         # 首次写入该 key，设置 48 小时过期兜底，避免长期堆积
         await redis_client.redis.expire(key, 48 * 3600)
+
+
+async def _record_budget_usage_safely(total_tokens: int) -> None:
+    """预算计数不可用时保留已成功的模型响应，避免用户重试造成重复计费。"""
+    try:
+        await _record_budget_usage(total_tokens)
+    except Exception as error:
+        logger.warning(
+            "LLM budget usage recording failed: error_type=%s",
+            type(error).__name__,
+        )
 
 
 def _prompt_hash(prompt: str) -> str:
@@ -167,7 +185,8 @@ async def call(
             latency_ms=latency_ms,
             status="success",
         ))
-        await _record_budget_usage(input_tokens + output_tokens)
+        await db.commit()
+        await _record_budget_usage_safely(input_tokens + output_tokens)
 
         return LLMResult(content=content, input_tokens=input_tokens, output_tokens=output_tokens, latency_ms=latency_ms)
 
@@ -190,6 +209,7 @@ async def call(
             status=status,
             error_message=error_type,
         ))
+        await db.commit()
 
         raise LLMServiceError(message=FALLBACK_RESPONSES.get(agent_type) or "LLM service unavailable") from e
 
@@ -262,8 +282,8 @@ async def stream(
             latency_ms=latency_ms,
             status="success",
         ))
-        await _record_budget_usage(input_tokens + output_tokens)
         await db.commit()
+        await _record_budget_usage_safely(input_tokens + output_tokens)
 
     except (APITimeoutError, APIConnectionError, RateLimitError, LLMResponseError) as e:
         latency_ms = int((time.monotonic() - start) * 1000)

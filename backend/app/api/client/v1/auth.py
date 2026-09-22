@@ -11,10 +11,16 @@ router = APIRouter()
 
 @router.post("/register")
 async def register(
+    request: Request,
     register_data: Register,
     db: AsyncSession = Depends(get_db)
 ):
     """患者注册，注册即激活账户"""
+    await enforce_rate_limit(
+        f"client_register:{request.client.host if request.client else 'unknown'}",
+        limit=5,
+        window_seconds=3600,
+    )
     result = await client_auth_service.register(
         db,
         register_data.email,

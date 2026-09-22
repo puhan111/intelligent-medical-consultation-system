@@ -14,12 +14,13 @@ from app.services.common import llm_service
 class RecordingDatabase:
     def __init__(self):
         self.added = []
+        self.commit_count = 0
 
     def add(self, value):
         self.added.append(value)
 
     async def commit(self):
-        pass
+        self.commit_count += 1
 
 
 class AsyncChunks:
@@ -71,6 +72,7 @@ async def test_non_streaming_call_runs_blocking_sdk_in_thread(monkeypatch):
     to_thread.assert_awaited_once_with(blocking_call, "hello", None, 30)
     assert result.content == "ok"
     assert db.added[0].status == "success"
+    assert db.commit_count == 1
 
 
 @pytest.mark.asyncio
@@ -97,6 +99,7 @@ async def test_model_failures_are_classified_and_redacted(
         await llm_service.call(db, "private-patient-prompt", "triage")
 
     assert db.added[0].status == expected_status
+    assert db.commit_count == 1
     assert db.added[0].error_message == type(error).__name__
     combined = caplog.text + str(db.added[0].error_message)
     assert "private-patient-prompt" not in combined
@@ -152,6 +155,7 @@ async def test_invalid_provider_response_has_stable_redacted_failure(monkeypatch
 
     assert db.added[0].status == "invalid_response"
     assert db.added[0].error_message == "LLMResponseError"
+    assert db.commit_count == 1
 
 
 @pytest.mark.asyncio
@@ -188,3 +192,38 @@ async def test_empty_stream_is_recorded_as_invalid_response(monkeypatch):
 
     assert db.added[0].status == "invalid_response"
     assert db.added[0].error_message == "LLMResponseError"
+    assert db.commit_count == 1
+
+
+@pytest.mark.asyncio
+async def test_budget_check_fails_open_without_exposing_error(monkeypatch, caplog):
+    secret = "private-redis-detail"
+    monkeypatch.setattr(llm_service.redis_client, "get", AsyncMock(side_effect=RuntimeError(secret)))
+
+    await llm_service._check_budget()
+
+    assert "RuntimeError" in caplog.text
+    assert secret not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_budget_recording_failure_does_not_discard_paid_response(monkeypatch, caplog):
+    db = RecordingDatabase()
+    monkeypatch.setattr(llm_service, "_check_budget", AsyncMock())
+    monkeypatch.setattr(
+        llm_service,
+        "_call_deepseek_sync",
+        lambda *_args: ("paid response", 11, 7),
+    )
+    monkeypatch.setattr(
+        llm_service,
+        "_record_budget_usage",
+        AsyncMock(side_effect=RuntimeError("private-redis-detail")),
+    )
+
+    result = await llm_service.call(db, "hello", "triage")
+
+    assert result.content == "paid response"
+    assert db.commit_count == 1
+    assert "RuntimeError" in caplog.text
+    assert "private-redis-detail" not in caplog.text

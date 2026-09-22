@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       - ENV=production
+      - FORWARDED_ALLOW_IPS=*
     env_file:
       - .env
     volumes:
@@ -48,12 +49,12 @@ services:
     build: .
     container_name: ${PROJECT_NAME:-demo}-celery-beat
     restart: unless-stopped
-    command: celery -A app.core.celery_app beat --loglevel=info
     env_file:
       - .env
     volumes:
       - ./logs:/app/logs
-      - ./celerybeat-schedule.db:/app/celerybeat-schedule.db
+      - celery-beat-data:/app/celerybeat-data
+    command: celery -A app.core.celery_app beat --loglevel=info --schedule=/app/celerybeat-data/celerybeat-schedule.db
     networks:
       - app-network
     depends_on:
@@ -130,6 +131,8 @@ services:
 
 volumes:
   redis-data:
+    driver: local
+  celery-beat-data:
     driver: local
 
 networks:

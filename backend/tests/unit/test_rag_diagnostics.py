@@ -145,7 +145,7 @@ def test_search_diagnostics_record_rerank_latency(monkeypatch):
     assert [result.id for result in results] == [2, 1]
 
 
-def test_search_diagnostics_record_rerank_fallback_reason(monkeypatch):
+def test_search_diagnostics_record_rerank_fallback_reason(monkeypatch, caplog):
     chunk = SimpleNamespace(
         id=1,
         source="doc-1",
@@ -156,7 +156,7 @@ def test_search_diagnostics_record_rerank_fallback_reason(monkeypatch):
     monkeypatch.setattr(rag_service, "_embed", lambda _query: [0.1, 0.2])
 
     def rerank_failure(*_args, **_kwargs):
-        raise PermissionError("workspace denied")
+        raise PermissionError("private-provider-detail")
 
     monkeypatch.setattr(rag_service, "_rerank", rerank_failure)
 
@@ -173,7 +173,7 @@ def test_search_diagnostics_record_rerank_fallback_reason(monkeypatch):
     results = asyncio.run(
         rag_service.search(
             db=object(),
-            query="测试问题",
+            query="private-patient-question",
             top_k=1,
             rerank=True,
             log_query=False,
@@ -184,5 +184,8 @@ def test_search_diagnostics_record_rerank_fallback_reason(monkeypatch):
     assert diagnostics["rerank_applied"] is False
     assert diagnostics["rerank_fallback"] is True
     assert diagnostics["rerank_error_type"] == "PermissionError"
-    assert diagnostics["rerank_error_message"] == "workspace denied"
+    assert diagnostics["rerank_error_message"] == "private-provider-detail"
+    assert "PermissionError" in caplog.text
+    assert "private-patient-question" not in caplog.text
+    assert "private-provider-detail" not in caplog.text
     assert [result.id for result in results] == [1]

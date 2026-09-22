@@ -181,9 +181,8 @@ async def search(
         except Exception as exc:
             # Rerank 是精排增强层，不应因其不可用让整个 RAG 和 Agent 失败。
             logger.warning(
-                "Rerank failed, falling back to RRF results: query=%r",
-                query,
-                exc_info=True,
+                "Rerank failed, falling back to RRF results: error_type=%s",
+                type(exc).__name__,
             )
             final_chunks = [chunk_map[cid] for cid in fused_ids[:top_k]]
             if diagnostics is not None:
