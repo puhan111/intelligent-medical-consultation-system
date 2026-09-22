@@ -12,6 +12,7 @@ from app.schemas.response import ApiResponse
 from app.schemas.client.triage import TriageChatRequest, TriageChatResponse
 from app.exceptions.http_exceptions import APIException
 from app.services.client.triage import chat as triage_chat, chat_stream as triage_chat_stream
+from app.services.common.rate_limit import enforce_rate_limit
 
 
 router = APIRouter()
@@ -29,6 +30,7 @@ async def chat(
 
     患者描述症状，AI推荐挂号科室
     """
+    await enforce_rate_limit(f"triage:{current_user.id}", limit=20, window_seconds=60)
     session_id, ai_response, recommendations, turn_count = await triage_chat(
         db=db,
         user_id=current_user.id,
@@ -51,6 +53,7 @@ async def chat_stream(
     current_user: User = Depends(get_current_user),
 ):
     """预约分诊流式对话，使用 NDJSON 逐行返回事件。"""
+    await enforce_rate_limit(f"triage:{current_user.id}", limit=20, window_seconds=60)
 
     async def event_stream():
         try:

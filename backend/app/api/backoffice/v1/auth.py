@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.api.backoffice.deps import get_current_admin
@@ -6,16 +6,23 @@ from app.schemas.backoffice.auth import Token, Login, RefreshToken, Logout
 from app.services.backoffice.auth import backoffice_auth_service
 from app.schemas.response import ApiResponse
 from app.models.admin import Admin
+from app.services.common.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=Token)
 async def login(
+    request: Request,
     login_data: Login,
     db: AsyncSession = Depends(get_db)
 ):
     """管理员登录"""
+    await enforce_rate_limit(
+        f"backoffice_login:{request.client.host if request.client else 'unknown'}",
+        limit=10,
+        window_seconds=300,
+    )
     result = await backoffice_auth_service.login(db, login_data.email, login_data.password)
     return ApiResponse.success(data=result)
 

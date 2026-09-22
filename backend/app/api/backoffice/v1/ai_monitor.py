@@ -10,6 +10,7 @@ from app.models.admin import Admin
 from app.schemas.response import ApiResponse
 from app.services.backoffice.ai_monitor import get_overview
 from app.services.backoffice.rag_evaluation import run_evaluation
+from app.services.common.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 
@@ -35,9 +36,12 @@ async def rag_evaluation(
     top_k: int = Query(default=3, ge=1, le=5),
     rerank: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
-    _: Admin = Depends(get_current_superadmin),
+    current_admin: Admin = Depends(get_current_superadmin),
 ):
     """运行固定合成数据集，不写入线上RAG查询日志。"""
+    await enforce_rate_limit(
+        f"rag_evaluation:{current_admin.id}", limit=5, window_seconds=3600
+    )
     return ApiResponse.success(
         data=await run_evaluation(db, top_k=top_k, rerank=rerank)
     )

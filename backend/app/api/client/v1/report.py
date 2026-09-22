@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.response import ApiResponse
 from app.schemas.paginator import Paginator
 from app.exceptions.http_exceptions import APIException
+from app.services.common.rate_limit import enforce_rate_limit
 
 
 router = APIRouter()
@@ -55,6 +56,7 @@ async def chat_about_report(
 
     首轮不传 session_id，后续轮次携带返回的 session_id 以保持上下文。
     """
+    await enforce_rate_limit(f"report_chat:{current_user.id}", limit=20, window_seconds=60)
     session_id, reply, turn_count = await report_chat.chat(
         db=db,
         patient_id=current_user.id,
@@ -78,6 +80,7 @@ async def chat_about_report_stream(
     current_user: User = Depends(get_current_user),
 ):
     """流式回答报告追问，使用 NDJSON 逐行返回事件。"""
+    await enforce_rate_limit(f"report_chat:{current_user.id}", limit=20, window_seconds=60)
 
     async def event_stream():
         try:
