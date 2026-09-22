@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.client.auth import Token, Login, Register, RefreshToken, Logout
 from app.services.client.auth import client_auth_service
 from app.schemas.response import ApiResponse
+from app.services.common.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 
@@ -26,10 +27,16 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
+    request: Request,
     login_data: Login,
     db: AsyncSession = Depends(get_db)
 ):
     """患者登录"""
+    await enforce_rate_limit(
+        f"client_login:{request.client.host if request.client else 'unknown'}",
+        limit=10,
+        window_seconds=300,
+    )
     result = await client_auth_service.login(db, login_data.email, login_data.password)
     return ApiResponse.success(data=result)
 
