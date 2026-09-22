@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import time
@@ -50,6 +51,10 @@ class LLMResult:
         self.latency_ms = latency_ms
 
 
+class LLMResponseError(Exception):
+    """The provider returned a successful response with an unusable shape."""
+
+
 def _budget_key() -> str:
     """按天累加 token 消耗的 Redis key"""
     return f"llm:token_budget:{date.today().isoformat()}"
@@ -81,6 +86,18 @@ def _prompt_hash(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
 
+def _failure_status(error: Exception) -> str:
+    if isinstance(error, APITimeoutError):
+        return "timeout"
+    if isinstance(error, RateLimitError):
+        return "rate_limited"
+    if isinstance(error, APIConnectionError):
+        return "connection_error"
+    if isinstance(error, LLMResponseError):
+        return "invalid_response"
+    return "error"
+
+
 @retry(
     retry=retry_if_exception_type((APITimeoutError, APIConnectionError, RateLimitError)),
     stop=stop_after_attempt(3),
@@ -99,8 +116,15 @@ def _call_deepseek_sync(prompt: str, system_prompt: Optional[str], timeout: int)
         messages=messages,
         timeout=timeout,
     )
-    content = response.choices[0].message.content
-    return content, response.usage.prompt_tokens, response.usage.completion_tokens
+    try:
+        content = response.choices[0].message.content
+        input_tokens = response.usage.prompt_tokens
+        output_tokens = response.usage.completion_tokens
+    except (AttributeError, IndexError, TypeError) as error:
+        raise LLMResponseError("invalid provider response") from error
+    if not isinstance(content, str) or not content.strip():
+        raise LLMResponseError("empty provider response")
+    return content, input_tokens, output_tokens
 
 
 async def call(
@@ -129,7 +153,10 @@ async def call(
     start = time.monotonic()
 
     try:
-        content, input_tokens, output_tokens = _call_deepseek_sync(prompt, system_prompt, timeout)
+        # OpenAI-compatible sync SDK call must not block the FastAPI event loop.
+        content, input_tokens, output_tokens = await asyncio.to_thread(
+            _call_deepseek_sync, prompt, system_prompt, timeout
+        )
         latency_ms = int((time.monotonic() - start) * 1000)
 
         db.add(LLMCallLog(
@@ -144,10 +171,15 @@ async def call(
 
         return LLMResult(content=content, input_tokens=input_tokens, output_tokens=output_tokens, latency_ms=latency_ms)
 
-    except (APITimeoutError, APIConnectionError, RateLimitError) as e:
+    except (APITimeoutError, APIConnectionError, RateLimitError, LLMResponseError) as e:
         latency_ms = int((time.monotonic() - start) * 1000)
-        status = "timeout" if isinstance(e, APITimeoutError) else "error"
-        logger.error(f"LLM call failed for agent_type={agent_type} after retries: {e}", exc_info=True)
+        status = _failure_status(e)
+        error_type = type(e).__name__
+        logger.error(
+            "LLM call failed after retries: agent_type=%s error_type=%s",
+            agent_type,
+            error_type,
+        )
 
         db.add(LLMCallLog(
             agent_type=agent_type,
@@ -156,7 +188,7 @@ async def call(
             output_tokens=0,
             latency_ms=latency_ms,
             status=status,
-            error_message=str(e),
+            error_message=error_type,
         ))
 
         raise LLMServiceError(message=FALLBACK_RESPONSES.get(agent_type) or "LLM service unavailable") from e
@@ -219,10 +251,12 @@ async def stream(
 
     except (APITimeoutError, APIConnectionError, RateLimitError) as e:
         latency_ms = int((time.monotonic() - start) * 1000)
-        status = "timeout" if isinstance(e, APITimeoutError) else "error"
+        status = _failure_status(e)
+        error_type = type(e).__name__
         logger.error(
-            f"Streaming LLM call failed for agent_type={agent_type}: {e}",
-            exc_info=True,
+            "Streaming LLM call failed: agent_type=%s error_type=%s",
+            agent_type,
+            error_type,
         )
         db.add(LLMCallLog(
             agent_type=agent_type,
@@ -231,7 +265,7 @@ async def stream(
             output_tokens=output_tokens,
             latency_ms=latency_ms,
             status=status,
-            error_message=str(e),
+            error_message=error_type,
         ))
         await db.commit()
         raise LLMServiceError(
