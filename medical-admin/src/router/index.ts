@@ -56,6 +56,12 @@ const router = createRouter({
           meta: { roles: ['superadmin'] satisfies RouteRole[] },
         },
         {
+          path: '/rag-evaluation',
+          name: 'RagEvaluation',
+          component: () => import('../views/rag-evaluation/Index.vue'),
+          meta: { roles: ['superadmin'] satisfies RouteRole[] },
+        },
+        {
           path: '/my-appointments',
           name: 'MyAppointments',
           component: () => import('../views/appointment/Index.vue'),

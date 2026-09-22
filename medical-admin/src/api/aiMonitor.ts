@@ -63,3 +63,16 @@ export function getAiMonitorOverview(params: {
 }): Promise<AiMonitorOverview> {
   return request.get('/ai-monitor/overview', { params })
 }
+
+export interface RagEvaluationResult {
+  ready: boolean
+  missing_sources?: string[]
+  generated_at?: string
+  top_k?: number
+  summary?: Record<string, number>
+  cases?: Array<Record<string, any>>
+}
+
+export function runRagEvaluation(params: { top_k: number; rerank: boolean }): Promise<RagEvaluationResult> {
+  return request.post('/ai-monitor/rag-evaluation', undefined, { params })
+}
