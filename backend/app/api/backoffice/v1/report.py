@@ -46,19 +46,25 @@ def _enqueue_report_interpretation(report_id: int):
         return report_interpret_task.apply_async(args=[report_id], **publish_options)
 
 
+async def _enqueue_or_mark_failed(db: AsyncSession, report_id: int) -> None:
+    try:
+        _enqueue_report_interpretation(report_id)
+    except OperationalError as exc:
+        logger.error("Failed to enqueue report interpretation task: report_id=%s", report_id)
+        async with transaction(db):
+            await report_service.mark_enqueue_failed(db, report_id)
+        raise APIException(
+            code=1005,
+            message="Task queue unavailable, report marked failed for retry",
+            status_code=503,
+        ) from exc
+
+
 async def _create_and_enqueue_report(db: AsyncSession, report_data: ReportCreate):
     async with transaction(db):
         result = await report_service.create_report(db, report_data)
 
-    try:
-        _enqueue_report_interpretation(result.id)
-    except OperationalError as exc:
-        logger.exception("Failed to enqueue report interpretation task: report_id=%s", result.id)
-        raise APIException(
-            code=1005,
-            message="Task queue unavailable, please retry later",
-            status_code=503,
-        ) from exc
+    await _enqueue_or_mark_failed(db, result.id)
     return result
 
 
@@ -199,15 +205,7 @@ async def retry_interpretation(
     async with transaction(db):
         result = await report_service.prepare_retry(db, report_id)
 
-    try:
-        _enqueue_report_interpretation(report_id)
-    except OperationalError as exc:
-        logger.exception("Failed to enqueue retry interpretation: report_id=%s", report_id)
-        raise APIException(
-            code=1005,
-            message="Task queue unavailable, please retry later",
-            status_code=503,
-        ) from exc
+    await _enqueue_or_mark_failed(db, report_id)
 
     return ApiResponse.success(data=result)
 

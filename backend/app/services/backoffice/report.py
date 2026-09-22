@@ -112,6 +112,16 @@ class ReportService:
         return await ReportService._to_response(db, report)
 
     @staticmethod
+    async def mark_enqueue_failed(db: AsyncSession, report_id: int) -> None:
+        """Make a persisted report recoverable when task publication fails."""
+        report = (
+            await db.execute(select(Report).where(Report.id == report_id))
+        ).scalar_one_or_none()
+        if report is not None and report.interpretation_status == "pending":
+            report.interpretation_status = "failed"
+            await db.flush()
+
+    @staticmethod
     def get_exam_pending_appointments_query(keyword: str | None = None):
         """
         返回等待检查结果的就诊记录，供检验科选择后录入报告
