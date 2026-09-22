@@ -8,7 +8,15 @@ from pydantic import ValidationError
 
 from app.core.config import settings
 from app.core.security import AuthBase
+from app.exceptions.http_exceptions import APIException
 from app.services.common import mcp_readonly as service
+
+
+@pytest.fixture(autouse=True)
+def stub_mcp_rate_limit(monkeypatch):
+    limiter = AsyncMock()
+    monkeypatch.setattr(service, "enforce_rate_limit", limiter)
+    return limiter
 
 
 def token(subject="17", scope="client", **kwargs):
@@ -107,3 +115,30 @@ async def test_references_are_filtered_bounded_and_do_not_write_query_logs(monke
     assert result["references"][0]["chunk_id"] == 1
     assert len(result["references"][0]["snippet"]) == 500
     assert set(result["references"][0]) == {"chunk_id", "source", "snippet"}
+
+
+@pytest.mark.asyncio
+async def test_reference_search_is_rate_limited_by_authenticated_patient(
+    monkeypatch, stub_mcp_rate_limit
+):
+    monkeypatch.setattr(service.rag_service, "search", AsyncMock(return_value=[]))
+
+    await service.search_medical_references(
+        database(), token(subject="17"), {"query": "医学", "top_k": 2}
+    )
+
+    stub_mcp_rate_limit.assert_awaited_once_with(
+        "mcp:reference_search:17", limit=20, window_seconds=60
+    )
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_uses_stable_mcp_error(monkeypatch, stub_mcp_rate_limit):
+    stub_mcp_rate_limit.side_effect = APIException(
+        status_code=429, code=1011, message="Too many requests"
+    )
+
+    with pytest.raises(service.ReadOnlyError, match="RATE_LIMITED"):
+        await service.get_my_report_status(
+            database(), token(subject="17"), {"report_id": 101}
+        )

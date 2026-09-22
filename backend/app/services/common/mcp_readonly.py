@@ -7,9 +7,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.core.security import AuthBase
+from app.exceptions.http_exceptions import APIException
 from app.models.report import Report
 from app.models.user import User
 from app.services.common import rag_service
+from app.services.common.rate_limit import enforce_rate_limit
 
 
 class ReadOnlyError(Exception):
@@ -29,6 +31,24 @@ class ReferenceSearchInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
     query: str = Field(min_length=1, max_length=500)
     top_k: int = Field(default=3, ge=1, le=5)
+
+
+async def enforce_tool_limit(patient_id: int, tool_name: str) -> None:
+    limits = {
+        "report_status": (60, 60),
+        "reference_search": (20, 60),
+    }
+    limit, window_seconds = limits[tool_name]
+    try:
+        await enforce_rate_limit(
+            f"mcp:{tool_name}:{patient_id}",
+            limit=limit,
+            window_seconds=window_seconds,
+        )
+    except APIException as error:
+        if error.status_code == 429:
+            raise ReadOnlyError("RATE_LIMITED") from error
+        raise
 
 
 def patient_id_from_token(token: str | None) -> int:
@@ -62,6 +82,7 @@ async def current_patient(db, token: str | None) -> int:
 
 async def get_my_report_status(db, token: str | None, arguments: dict) -> dict:
     patient_id = await current_patient(db, token)
+    await enforce_tool_limit(patient_id, "report_status")
     params = ReportStatusInput.model_validate(arguments)
     result = await db.execute(
         select(Report.id, Report.type, Report.interpretation_status, Report.interpretation_at)
@@ -79,7 +100,8 @@ async def get_my_report_status(db, token: str | None, arguments: dict) -> dict:
 
 
 async def search_medical_references(db, token: str | None, arguments: dict) -> dict:
-    await current_patient(db, token)
+    patient_id = await current_patient(db, token)
+    await enforce_tool_limit(patient_id, "reference_search")
     params = ReferenceSearchInput.model_validate(arguments)
     chunks = await rag_service.search(
         db, query=params.query, top_k=params.top_k,

@@ -49,7 +49,7 @@ class RedisClient:
 
     async def close(self):
         """关闭 Redis 连接"""
-        await self.redis.close()
+        await self.redis.aclose()
 
 
 redis_client = RedisClient()
