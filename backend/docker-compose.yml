@@ -1,3 +1,5 @@
+name: ${PROJECT_NAME:-medical-system}
+
 services:
   # FastAPI应用
   app:
@@ -10,14 +12,14 @@ services:
     env_file:
       - .env
     volumes:
-      - ./logs:/app/logs
+      - app-logs:/app/logs
     networks:
       - app-network
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${API_PORT:-8001}/api/v1/config/health')"]
+      test: ["CMD", "python", "-c", "import http.client; c = http.client.HTTPConnection('127.0.0.1', ${API_PORT:-8001}, timeout=5); c.request('GET', '/api/v1/config/health'); assert c.getresponse().status == 200"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,7 +34,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./logs:/app/logs
+      - app-logs:/app/logs
     networks:
       - app-network
     depends_on:
@@ -52,7 +54,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./logs:/app/logs
+      - app-logs:/app/logs
       - celery-beat-data:/app/celerybeat-data
     command: celery -A app.core.celery_app beat --loglevel=info --schedule=/app/celerybeat-data/celerybeat-schedule.db
     networks:
@@ -124,12 +126,14 @@ services:
       - monitoring
     # 覆盖从镜像继承的健康检查，改为检查 flower 自身的 5555 端口
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5555')"]
+      test: ["CMD", "python", "-c", "import http.client; c = http.client.HTTPConnection('127.0.0.1', 5555, timeout=5); c.request('GET', '/'); assert c.getresponse().status == 200"]
       interval: 30s
       timeout: 10s
       retries: 3
 
 volumes:
+  app-logs:
+    driver: local
   redis-data:
     driver: local
   celery-beat-data:
