@@ -35,7 +35,7 @@ services:
       - ENV=development
     volumes:
       - ./app:/app/app
-      - ./logs:/app/logs
+      - app-logs:/app/logs
       - ./scripts:/app/scripts
       - ./migrations:/app/migrations
     depends_on:
@@ -51,7 +51,7 @@ services:
       - ENV=development
     volumes:
       - ./app:/app/app  # 挂载代码目录以支持热更新
-      - ./logs:/app/logs
+      - app-logs:/app/logs
       - ./scripts:/app/scripts
     networks:
       - app-network

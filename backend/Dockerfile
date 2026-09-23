@@ -23,14 +23,14 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && 
     pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
 
 # 复制依赖文件并安装 Python 依赖
-COPY requirements.txt .
+COPY requirements.txt constraints.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
 
-# 创建日志目录
-RUN mkdir -p logs
+# 创建运行时可写目录；命名卷首次挂载时会继承这些目录的属主
+RUN mkdir -p logs celerybeat-data
 
 # 创建非 root 用户运行应用
 RUN useradd --create-home --shell /bin/bash app \
@@ -42,7 +42,7 @@ EXPOSE 8001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/config/health')" || exit 1
+    CMD python -c "import http.client, os; c = http.client.HTTPConnection('127.0.0.1', int(os.getenv('API_PORT', '8001')), timeout=5); c.request('GET', '/api/v1/config/health'); assert c.getresponse().status == 200" || exit 1
 
 # 启动命令
 CMD ["python", "main.py"]
