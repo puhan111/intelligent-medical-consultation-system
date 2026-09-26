@@ -33,6 +33,13 @@ services:
       - "${API_PORT:-8001}:${API_PORT:-8001}"
     environment:
       - ENV=development
+      # 旧 .env 的宿主回环代理在容器内不可达；开发容器直连外部 API。
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - ALL_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - all_proxy=
     volumes:
       - ./app:/app/app
       - app-logs:/app/logs
@@ -49,6 +56,12 @@ services:
     image: ${PROJECT_NAME:-app}:dev
     environment:
       - ENV=development
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - ALL_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - all_proxy=
     volumes:
       - ./app:/app/app  # 挂载代码目录以支持热更新
       - app-logs:/app/logs
