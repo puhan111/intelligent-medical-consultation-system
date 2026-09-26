@@ -51,6 +51,34 @@ services:
       redis:
         condition: service_healthy
 
+  # 本地MCP联调入口；仅在显式启用mcp profile时启动。
+  mcp:
+    profiles: ["mcp"]
+    image: ${PROJECT_NAME:-app}:dev
+    command: ["uvicorn", "app.mcp_server:create_app", "--factory", "--host", "0.0.0.0", "--port", "8765", "--no-access-log"]
+    env_file:
+      - .env
+    environment:
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - ALL_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - all_proxy=
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./app:/app/app
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
   # Celery Worker - 复用开发环境镜像
   celery-worker:
     image: ${PROJECT_NAME:-app}:dev
