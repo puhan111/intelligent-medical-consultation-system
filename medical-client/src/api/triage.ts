@@ -1,5 +1,6 @@
 import request from '../utils/request'
 import { clearToken, getToken } from '../utils/request'
+import { readNdjsonStream } from '../utils/ndjsonStream'
 
 export interface DepartmentRecommendation {
   department_id: number
@@ -61,23 +62,5 @@ export async function triageChatStream(
     throw new Error(message)
   }
 
-  if (!response.body) throw new Error('浏览器不支持流式响应')
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { value, done } = await reader.read()
-    buffer += decoder.decode(value, { stream: !done })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      if (line.trim()) onEvent(JSON.parse(line) as TriageStreamEvent)
-    }
-    if (done) break
-  }
-
-  if (buffer.trim()) onEvent(JSON.parse(buffer) as TriageStreamEvent)
+  await readNdjsonStream<TriageStreamEvent>(response.body, onEvent)
 }
