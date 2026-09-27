@@ -3,7 +3,7 @@ import json
 from types import SimpleNamespace
 
 from app.api.client.v1 import report as report_api
-from app.exceptions.http_exceptions import APIException
+from app.exceptions.http_exceptions import APIException, LLMServiceError
 from app.schemas.client.report import ReportChatRequest
 from app.services.client import report_chat
 
@@ -173,3 +173,32 @@ def test_stream_endpoint_turns_api_exception_into_error_event(monkeypatch):
         "type": "error",
         "message": "Report not found or access denied",
     }
+
+
+def test_model_failure_after_delta_does_not_save_partial_reply(monkeypatch):
+    saved_turns = _install_stream_stubs(monkeypatch)
+
+    async def fail_after_delta(*_args, **_kwargs):
+        yield "部分回答"
+        raise LLMServiceError(message="报告追问暂时不可用")
+
+    async def allow_rate_limit(*_args, **_kwargs):
+        pass
+
+    monkeypatch.setattr(report_chat.llm_service, "stream", fail_after_delta)
+    monkeypatch.setattr(report_api, "enforce_rate_limit", allow_rate_limit)
+
+    response = asyncio.run(
+        report_api.chat_about_report_stream(
+            report_id=101,
+            request=ReportChatRequest(message="解释报告"),
+            db=_DatabaseSession(),
+            current_user=SimpleNamespace(id=17),
+        )
+    )
+    events = [json.loads(line) for line in asyncio.run(_collect_ndjson(response)).splitlines()]
+
+    assert [event["type"] for event in events] == ["start", "delta", "error"]
+    assert events[1]["content"] == "部分回答"
+    assert events[-1]["message"] == "报告追问暂时不可用"
+    assert saved_turns == []
