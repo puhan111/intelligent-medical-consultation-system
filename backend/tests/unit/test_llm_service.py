@@ -196,6 +196,35 @@ async def test_empty_stream_is_recorded_as_invalid_response(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_stream_connection_failure_after_content_is_recorded_without_retry(monkeypatch, caplog):
+    db = RecordingDatabase()
+    monkeypatch.setattr(llm_service, "_check_budget", AsyncMock())
+
+    async def partial_stream():
+        yield SimpleNamespace(
+            usage=None,
+            choices=[SimpleNamespace(delta=SimpleNamespace(content="部分回答"))],
+        )
+        raise connection_error()
+
+    create_stream = AsyncMock(return_value=partial_stream())
+    monkeypatch.setattr(llm_service, "_create_deepseek_stream", create_stream)
+
+    deltas = []
+    with pytest.raises(LLMServiceError):
+        async for delta in llm_service.stream(db, "private-patient-prompt", "report_followup"):
+            deltas.append(delta)
+
+    assert deltas == ["部分回答"]
+    create_stream.assert_awaited_once()
+    assert db.added[0].status == "connection_error"
+    assert db.added[0].error_message == "APIConnectionError"
+    assert db.commit_count == 1
+    assert "private-patient-prompt" not in caplog.text
+    assert "private-connection-detail" not in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_budget_check_fails_open_without_exposing_error(monkeypatch, caplog):
     secret = "private-redis-detail"
     monkeypatch.setattr(llm_service.redis_client, "get", AsyncMock(side_effect=RuntimeError(secret)))
