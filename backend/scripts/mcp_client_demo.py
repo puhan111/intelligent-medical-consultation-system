@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--login", action="store_true", help="通过患者账号登录，不显示密码或令牌")
     args = parser.parse_args()
     if args.login:
-        email = input("患者邮箱: ").strip()
+        email = getpass.getpass("患者邮箱（不会回显）: ").strip()
         password = getpass.getpass("患者密码（不会回显）: ")
         access_token = asyncio.run(login(email, password))
     else:
