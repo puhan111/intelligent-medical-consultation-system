@@ -46,7 +46,6 @@
 ├── medical-admin/      管理后台（Vue3 + Element Plus）
 ├── medical-client/     患者端（Vue3）
 ├── 部署文档.md          完整部署说明
-└── 项目截图/            各业务环节运行截图
 ```
 
 ## 快速开始
@@ -69,11 +68,3 @@ python scripts/eval_rag_retrieval.py   # RAG 检索质量评测
 ```
 
 CI 流水线（见 [.github/workflows/ci.yml](.github/workflows/ci.yml)）在每次推送时执行：后端 lint + pytest、双前端 TypeScript 检查与构建、Docker Compose 配置校验、空库迁移至 head 并比对模型一致性。
-
-## 运行截图
-
-| 分诊 Agent | RAG 知识库 | AI 运行监控 |
-|---|---|---|
-| ![分诊Agent](项目截图/9.分诊Agent.png) | ![知识库](项目截图/2.分诊指引知识库.png) | ![AI监控](项目截图/7.A运行监控.png) |
-
-更多环节（挂号、接诊、报告录入、缴费、报告追问等）见 [项目截图/](项目截图/)。
