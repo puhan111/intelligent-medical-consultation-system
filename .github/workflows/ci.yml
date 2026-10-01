@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+            backend/constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
+      - run: pip install flake8
+      - run: pip check
+      - name: Reject critical Python lint errors
+        run: flake8 --select=E9,F63,F7,F82 app/ tests/ scripts/
+      - run: pytest -q
+
+  frontend-builds:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        app: [medical-admin, medical-client]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - if: matrix.app == 'medical-client'
+        run: npm run test:stream
+      - run: npm run build
+
+  compose-config:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create validation environment
+        run: cp .env.example .env
+      - name: Validate production Compose
+        run: docker compose config --quiet
+      - name: Validate development Compose overlay
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+      - name: Build production backend image
+        run: docker build --file Dockerfile --tag medical-backend-ci .
+
+  migration-check:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: app
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/constraints.txt
+      - run: pip install -r requirements.txt -c constraints.txt
+      - name: Upgrade an empty database to head
+        run: alembic upgrade head
+      - name: Verify models match the migrated schema
+        run: alembic check
