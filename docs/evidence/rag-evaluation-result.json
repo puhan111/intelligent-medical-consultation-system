@@ -1,0 +1,215 @@
+{
+  "ready": true,
+  "generated_at": "2026-10-18T07:34:52.244824+00:00",
+  "configuration": {
+    "dataset": "内置合成回归集",
+    "rerank": false,
+    "corpus": "evaluation"
+  },
+  "top_k": 3,
+  "summary": {
+    "case_count": 5,
+    "evaluated_case_count": 4,
+    "skipped_case_count": 1,
+    "hit_rate_at_3": 1.0,
+    "mean_recall_at_3": 1.0,
+    "mrr_at_3": 1.0
+  },
+  "cases": [
+    {
+      "case_id": "known-night-clinic-code",
+      "category": "known_fact",
+      "expectation": "retrieve",
+      "status": "evaluated",
+      "expected_sources": [
+        "rag-eval://night-clinic-2026"
+      ],
+      "retrieved_sources": [
+        "rag-eval://night-clinic-2026"
+      ],
+      "hit_sources": [
+        "rag-eval://night-clinic-2026"
+      ],
+      "hit_at_3": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank_at_3": 1.0,
+      "diagnostics": {
+        "corpus": "evaluation",
+        "rerank_requested": false,
+        "rerank_applied": false,
+        "rerank_fallback": false,
+        "candidate_n": 10,
+        "embedding_latency_ms": 432,
+        "vector_search_latency_ms": 14,
+        "fulltext_search_latency_ms": 510,
+        "candidate_count": 1,
+        "result_count": 1,
+        "latency_ms": 957,
+        "results": [
+          {
+            "source": "rag-eval://night-clinic-2026",
+            "score": 0.03278688524590164,
+            "preview": "[合成评测资料，不代表真实医院信息] 2026版星河门诊夜间呼吸内科的内部代号为蓝鲸-17。"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "distinguish-adult-xq9",
+      "category": "multi_document",
+      "expectation": "retrieve",
+      "status": "evaluated",
+      "expected_sources": [
+        "rag-eval://xq9-adult"
+      ],
+      "retrieved_sources": [
+        "rag-eval://xq9-adult",
+        "rag-eval://xq9-pregnancy",
+        "rag-eval://protocol-v1"
+      ],
+      "hit_sources": [
+        "rag-eval://xq9-adult"
+      ],
+      "hit_at_3": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank_at_3": 1.0,
+      "diagnostics": {
+        "corpus": "evaluation",
+        "rerank_requested": false,
+        "rerank_applied": false,
+        "rerank_fallback": false,
+        "candidate_n": 10,
+        "embedding_latency_ms": 194,
+        "vector_search_latency_ms": 10,
+        "fulltext_search_latency_ms": 1,
+        "candidate_count": 4,
+        "result_count": 3,
+        "latency_ms": 206,
+        "results": [
+          {
+            "source": "rag-eval://xq9-adult",
+            "score": 0.03278688524590164,
+            "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+          },
+          {
+            "source": "rag-eval://xq9-pregnancy",
+            "score": 0.03225806451612903,
+            "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，孕期组的复查标签为晨星-P。"
+          },
+          {
+            "source": "rag-eval://protocol-v1",
+            "score": 0.031746031746031744,
+            "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "distinguish-pregnancy-xq9",
+      "category": "multi_document",
+      "expectation": "retrieve",
+      "status": "evaluated",
+      "expected_sources": [
+        "rag-eval://xq9-pregnancy"
+      ],
+      "retrieved_sources": [
+        "rag-eval://xq9-pregnancy",
+        "rag-eval://xq9-adult",
+        "rag-eval://protocol-v1"
+      ],
+      "hit_sources": [
+        "rag-eval://xq9-pregnancy"
+      ],
+      "hit_at_3": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank_at_3": 1.0,
+      "diagnostics": {
+        "corpus": "evaluation",
+        "rerank_requested": false,
+        "rerank_applied": false,
+        "rerank_fallback": false,
+        "candidate_n": 10,
+        "embedding_latency_ms": 242,
+        "vector_search_latency_ms": 3,
+        "fulltext_search_latency_ms": 1,
+        "candidate_count": 4,
+        "result_count": 3,
+        "latency_ms": 247,
+        "results": [
+          {
+            "source": "rag-eval://xq9-pregnancy",
+            "score": 0.03278688524590164,
+            "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，孕期组的复查标签为晨星-P。"
+          },
+          {
+            "source": "rag-eval://xq9-adult",
+            "score": 0.03225806451612903,
+            "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+          },
+          {
+            "source": "rag-eval://protocol-v1",
+            "score": 0.031746031746031744,
+            "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "prefer-current-protocol",
+      "category": "conflict_fact",
+      "expectation": "retrieve",
+      "status": "evaluated",
+      "expected_sources": [
+        "rag-eval://protocol-v2"
+      ],
+      "retrieved_sources": [
+        "rag-eval://protocol-v2",
+        "rag-eval://protocol-v1",
+        "rag-eval://xq9-adult"
+      ],
+      "hit_sources": [
+        "rag-eval://protocol-v2"
+      ],
+      "hit_at_3": 1.0,
+      "recall_at_3": 1.0,
+      "reciprocal_rank_at_3": 1.0,
+      "diagnostics": {
+        "corpus": "evaluation",
+        "rerank_requested": false,
+        "rerank_applied": false,
+        "rerank_fallback": false,
+        "candidate_n": 10,
+        "embedding_latency_ms": 250,
+        "vector_search_latency_ms": 12,
+        "fulltext_search_latency_ms": 1,
+        "candidate_count": 4,
+        "result_count": 3,
+        "latency_ms": 263,
+        "results": [
+          {
+            "source": "rag-eval://protocol-v2",
+            "score": 0.03278688524590164,
+            "preview": "[合成评测资料，当前版本] Orion流程2026版的确认码为OR-26。"
+          },
+          {
+            "source": "rag-eval://protocol-v1",
+            "score": 0.03225806451612903,
+            "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+          },
+          {
+            "source": "rag-eval://xq9-adult",
+            "score": 0.031746031746031744,
+            "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "missing-moonlight-cycle",
+      "category": "missing_fact",
+      "expectation": "abstain",
+      "status": "skipped",
+      "reason": "requires answer-level evaluation"
+    }
+  ]
+}

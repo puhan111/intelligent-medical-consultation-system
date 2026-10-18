@@ -1,0 +1,235 @@
+{
+  "source": "original WSL data restored on VM, with additive demo reference and report",
+  "original_report_id": 6,
+  "original_report_unchanged": true,
+  "regression_report_id": 7,
+  "regression_report_type": "RAG隔离回归报告（虚构数据）",
+  "interpretation_completed": true,
+  "reference_sources": [
+    "demo://report-demo-a"
+  ],
+  "interpretation": "这份报告是一份**虚构的测试报告**，仅用于验证软件功能，不是真实的医学检验结果。下面逐项说明：\n\n**演示指标A（代码 DEMO-A）**\n- 结果：1 测试单位\n- 参考范围：0–2（仅供功能测试）\n- 状态：正常（normal）\n\n按这份测试报告自己的约定，结果 1 落在 0–2 的范围内，因此被标记为正常，报告里也没有已标记的异常项。需要强调的是，这个“正常”只是测试数据的字段标记，**不代表任何人的真实健康状况**。DEMO-A 是虚构字段，不对应白细胞、血糖或任何真实人体检验指标，不能拿来类比或推断任何医学含义。\n\n**关于“有没有异常项”**：这份报告没有已标记的异常项，也不存在需要就医提示的真实异常指标。\n\n**这份报告能说明什么**：只能说明报告录入、展示、解读和追问流程可以正常运行。它不能用于判断疾病、严重程度、复查周期或用药方案，也不能据此给出治疗或挂号建议。资料中没有的信息，这里也没有依据补充。\n\n如果您手上有真实的检验报告需要解读，建议把真实报告内容提供出来，或直接咨询开具报告的医生。\n\n仅供参考，本解读不能替代医生诊断。",
+  "question": "请解释这份虚构报告中的 DEMO-A 指标，并说明哪些信息无法仅凭这份报告判断。",
+  "reply": "**DEMO-A 指标解释**\n\n这份报告里的 DEMO-A 是虚构字段，不对应任何真实人体检验指标（不是白细胞、血糖之类的项目）。报告记录的结果是 **1 测试单位**，参考范围 **0–2（仅供功能测试）**，状态标记为 **normal**。按这份测试报告自己的字段约定，1 落在 0–2 之间，所以被标记为正常，报告中没有已标记的异常项。这个“正常”只是测试数据的字段标记，不代表任何人的真实健康状况。\n\n**仅凭这份报告无法判断的信息**\n\n- 无法判断任何真实健康状况或疾病，因为 DEMO-A 是虚构字段，没有医学含义；\n- 无法判断严重程度、复查周期或用药方案，报告不提供这类依据；\n- 无法推断其他任何检验指标的情况，报告里只有这一项虚构数据；\n- 无法据此给出治疗或挂号建议。\n\n如果您有真实的检验报告需要解读，建议提供真实报告内容，或直接咨询开具报告的医生。\n\n仅供参考，本解读不能替代医生诊断。",
+  "stream_has_done": true,
+  "new_outputs_contain_eval_markers": false,
+  "business_vector_candidates": 3,
+  "evaluation_vector_candidates": 5,
+  "business_fulltext_candidates_for_eval_term": 0,
+  "evaluation_fulltext_candidates": 2,
+  "fixed_evaluation": {
+    "ready": true,
+    "generated_at": "2026-10-18T14:30:34.799964+00:00",
+    "configuration": {
+      "dataset": "内置合成回归集",
+      "rerank": false,
+      "corpus": "evaluation"
+    },
+    "top_k": 3,
+    "summary": {
+      "case_count": 5,
+      "evaluated_case_count": 4,
+      "skipped_case_count": 1,
+      "hit_rate_at_3": 1.0,
+      "mean_recall_at_3": 1.0,
+      "mrr_at_3": 1.0
+    },
+    "cases": [
+      {
+        "case_id": "known-night-clinic-code",
+        "category": "known_fact",
+        "expectation": "retrieve",
+        "status": "evaluated",
+        "expected_sources": [
+          "rag-eval://night-clinic-2026"
+        ],
+        "retrieved_sources": [
+          "rag-eval://night-clinic-2026"
+        ],
+        "hit_sources": [
+          "rag-eval://night-clinic-2026"
+        ],
+        "hit_at_3": 1.0,
+        "recall_at_3": 1.0,
+        "reciprocal_rank_at_3": 1.0,
+        "diagnostics": {
+          "corpus": "evaluation",
+          "rerank_requested": false,
+          "rerank_applied": false,
+          "rerank_fallback": false,
+          "candidate_n": 10,
+          "embedding_latency_ms": 202,
+          "vector_search_latency_ms": 4,
+          "fulltext_search_latency_ms": 1,
+          "candidate_count": 1,
+          "result_count": 1,
+          "latency_ms": 209,
+          "results": [
+            {
+              "source": "rag-eval://night-clinic-2026",
+              "score": 0.03278688524590164,
+              "preview": "[合成评测资料，不代表真实医院信息] 2026版星河门诊夜间呼吸内科的内部代号为蓝鲸-17。"
+            }
+          ]
+        }
+      },
+      {
+        "case_id": "distinguish-adult-xq9",
+        "category": "multi_document",
+        "expectation": "retrieve",
+        "status": "evaluated",
+        "expected_sources": [
+          "rag-eval://xq9-adult"
+        ],
+        "retrieved_sources": [
+          "rag-eval://xq9-adult",
+          "rag-eval://xq9-pregnancy",
+          "rag-eval://protocol-v1"
+        ],
+        "hit_sources": [
+          "rag-eval://xq9-adult"
+        ],
+        "hit_at_3": 1.0,
+        "recall_at_3": 1.0,
+        "reciprocal_rank_at_3": 1.0,
+        "diagnostics": {
+          "corpus": "evaluation",
+          "rerank_requested": false,
+          "rerank_applied": false,
+          "rerank_fallback": false,
+          "candidate_n": 10,
+          "embedding_latency_ms": 218,
+          "vector_search_latency_ms": 4,
+          "fulltext_search_latency_ms": 1,
+          "candidate_count": 4,
+          "result_count": 3,
+          "latency_ms": 224,
+          "results": [
+            {
+              "source": "rag-eval://xq9-adult",
+              "score": 0.03278688524590164,
+              "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+            },
+            {
+              "source": "rag-eval://xq9-pregnancy",
+              "score": 0.03225806451612903,
+              "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，孕期组的复查标签为晨星-P。"
+            },
+            {
+              "source": "rag-eval://protocol-v1",
+              "score": 0.031746031746031744,
+              "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+            }
+          ]
+        }
+      },
+      {
+        "case_id": "distinguish-pregnancy-xq9",
+        "category": "multi_document",
+        "expectation": "retrieve",
+        "status": "evaluated",
+        "expected_sources": [
+          "rag-eval://xq9-pregnancy"
+        ],
+        "retrieved_sources": [
+          "rag-eval://xq9-pregnancy",
+          "rag-eval://xq9-adult",
+          "rag-eval://protocol-v1"
+        ],
+        "hit_sources": [
+          "rag-eval://xq9-pregnancy"
+        ],
+        "hit_at_3": 1.0,
+        "recall_at_3": 1.0,
+        "reciprocal_rank_at_3": 1.0,
+        "diagnostics": {
+          "corpus": "evaluation",
+          "rerank_requested": false,
+          "rerank_applied": false,
+          "rerank_fallback": false,
+          "candidate_n": 10,
+          "embedding_latency_ms": 241,
+          "vector_search_latency_ms": 4,
+          "fulltext_search_latency_ms": 2,
+          "candidate_count": 4,
+          "result_count": 3,
+          "latency_ms": 248,
+          "results": [
+            {
+              "source": "rag-eval://xq9-pregnancy",
+              "score": 0.03278688524590164,
+              "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，孕期组的复查标签为晨星-P。"
+            },
+            {
+              "source": "rag-eval://xq9-adult",
+              "score": 0.03225806451612903,
+              "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+            },
+            {
+              "source": "rag-eval://protocol-v1",
+              "score": 0.031746031746031744,
+              "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+            }
+          ]
+        }
+      },
+      {
+        "case_id": "prefer-current-protocol",
+        "category": "conflict_fact",
+        "expectation": "retrieve",
+        "status": "evaluated",
+        "expected_sources": [
+          "rag-eval://protocol-v2"
+        ],
+        "retrieved_sources": [
+          "rag-eval://protocol-v2",
+          "rag-eval://protocol-v1",
+          "rag-eval://xq9-adult"
+        ],
+        "hit_sources": [
+          "rag-eval://protocol-v2"
+        ],
+        "hit_at_3": 1.0,
+        "recall_at_3": 1.0,
+        "reciprocal_rank_at_3": 1.0,
+        "diagnostics": {
+          "corpus": "evaluation",
+          "rerank_requested": false,
+          "rerank_applied": false,
+          "rerank_fallback": false,
+          "candidate_n": 10,
+          "embedding_latency_ms": 197,
+          "vector_search_latency_ms": 190,
+          "fulltext_search_latency_ms": 1,
+          "candidate_count": 4,
+          "result_count": 3,
+          "latency_ms": 389,
+          "results": [
+            {
+              "source": "rag-eval://protocol-v2",
+              "score": 0.03278688524590164,
+              "preview": "[合成评测资料，当前版本] Orion流程2026版的确认码为OR-26。"
+            },
+            {
+              "source": "rag-eval://protocol-v1",
+              "score": 0.03225806451612903,
+              "preview": "[合成评测资料，已过期版本] Orion流程2025版的确认码为OR-25。"
+            },
+            {
+              "source": "rag-eval://xq9-adult",
+              "score": 0.031746031746031744,
+              "preview": "[合成评测资料，不构成医疗建议] 对评测指标XQ-9，成人组的复查标签为晨星-A。"
+            }
+          ]
+        }
+      },
+      {
+        "case_id": "missing-moonlight-cycle",
+        "category": "missing_fact",
+        "expectation": "abstain",
+        "status": "skipped",
+        "reason": "requires answer-level evaluation"
+      }
+    ]
+  }
+}

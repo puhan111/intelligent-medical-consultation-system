@@ -1,0 +1,19 @@
+{
+  "frontend_admin": true,
+  "frontend_patient": true,
+  "admin_login": true,
+  "patient_login": true,
+  "evaluation": {
+    "case_count": 5,
+    "evaluated_case_count": 4,
+    "skipped_case_count": 1,
+    "hit_rate_at_3": 1.0,
+    "mean_recall_at_3": 1.0,
+    "mrr_at_3": 1.0
+  },
+  "corpus": "evaluation",
+  "report_id": 1,
+  "celery_interpretation_completed": true,
+  "stream_has_done": true,
+  "reply_contains_evaluation_markers": false
+}

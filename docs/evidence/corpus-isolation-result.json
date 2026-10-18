@@ -1,0 +1,10 @@
+{
+  "verification_method": "SSH 在独立 VM 新库中直接调用向量与全文召回；使用已存向量，未额外调用 Embedding",
+  "business_vector_candidates": 3,
+  "evaluation_vector_candidates": 5,
+  "business_fulltext_candidates_for_eval_query": 0,
+  "evaluation_fulltext_candidates": 2,
+  "fulltext_query": "Orion",
+  "report_references_are_business_only": true,
+  "limits": "仅验证本次演示库、所列两条召回路径及本次报告引用；不代表通用相关性或答案正确率"
+}

@@ -1,0 +1,19 @@
+{
+  "recorded_at_utc": "2026-10-18T07:36:16.405991+00:00",
+  "project": "medical-review-20261018",
+  "image_id": "sha256:3bec9cb81dcf284da8b96e1463c49ea95653cdadd8f8bc1fe5c09d053e2cea55",
+  "app_health": "healthy",
+  "runtime_source_sha256": {
+    "app/services/common/rag_service.py": "6b529ba85c59500ee25cc7243cb4591f5b5ea622e6892f88f7c9a9996b91bfd4",
+    "app/services/backoffice/rag_evaluation.py": "5a67a27bb695485c6e7d8b144c41b182b23a10cd61e971e5c25f6b6d6d61455e",
+    "scripts/eval_rag_retrieval.py": "e94d0022c220727de44ab0fe5cb7636e69d8bdef5c1f14c50910a8977abb6f4a",
+    "requirements.txt": "1763f0ed489bdd00748ee1db3105154a1a10279e2f6c32e2107075575bdb1230"
+  },
+  "deployment_file_sha256": {
+    "compose": "0fc46e88c8f34b2dfb7b7a946b62d00b045314eb5c872e8a306192728fa3fd0d",
+    "dockerfile": "791807fdfe622a72b9960441600dabe8da03c4fe78c409b2140456f73085a8a5",
+    "business_reference": "ee67a16b0b87ae37c3ee742f9d2667e8bee2cf2e775844e88d75dcb3d285ae2d"
+  },
+  "initial_archive_sha256": "c41dffa89a25e28c09236243fc04f838af22d89bd19ad589675b4fca50364da8",
+  "notes": "Dockerfile/Compose 和业务演示资料在初始归档后更新；以运行镜像和最终文件指纹为准。"
+}
