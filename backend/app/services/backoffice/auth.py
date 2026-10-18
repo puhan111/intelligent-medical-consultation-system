@@ -73,7 +73,7 @@ class BackofficeAuthService(AuthBase):
 
         admin_id = payload.get("sub")
         token_query = select(AdminToken).where(
-            (AdminToken.admin_id == admin_id) &
+            (AdminToken.admin_id == int(admin_id)) &
             (AdminToken.is_active == True)
         )
         result = await db.execute(token_query)
@@ -101,7 +101,7 @@ class BackofficeAuthService(AuthBase):
 
         admin_id = payload.get("sub")
         token_query = select(AdminToken).where(
-            (AdminToken.admin_id == admin_id) &
+            (AdminToken.admin_id == int(admin_id)) &
             (AdminToken.is_active == True)
         )
         result = await db.execute(token_query)

@@ -44,7 +44,7 @@ async def create_admin(
         )
         db.add(admin)
         await db.commit()
-        print(f"创建成功：{email}（角色：{role.value}）")
+        print(f"创建成功：{email}（角色：{role}）")
 
 
 async def main() -> None:

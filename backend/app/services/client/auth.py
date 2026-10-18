@@ -98,7 +98,7 @@ class ClientAuthService(AuthBase):
 
         user_id = payload.get("sub")
         token_query = select(UserToken).where(
-            (UserToken.user_id == user_id) &
+            (UserToken.user_id == int(user_id)) &
             (UserToken.is_active == True)
         )
         result = await db.execute(token_query)
@@ -126,7 +126,7 @@ class ClientAuthService(AuthBase):
 
         user_id = payload.get("sub")
         token_query = select(UserToken).where(
-            (UserToken.user_id == user_id) &
+            (UserToken.user_id == int(user_id)) &
             (UserToken.is_active == True)
         )
         result = await db.execute(token_query)
