@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from typing import List, Optional
+from typing import List, Literal, Optional
 import dashscope
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,9 +59,11 @@ def _rerank(query: str, documents: List[str]) -> List[int]:
     return [r["index"] for r in ranked]
 
 
-async def _vector_search(db: AsyncSession, query_vector: List[float], candidate_n: int, source_type: Optional[str]):
+async def _vector_search(db: AsyncSession, query_vector: List[float], candidate_n: int, source_type: Optional[str], corpus: str = "business"):
     """pgvector 余弦距离检索候选池，返回按距离升序排列的 (chunk, rank) 列表"""
     stmt = select(KnowledgeChunk)
+    evaluation_source = KnowledgeChunk.source.startswith("rag-eval://")
+    stmt = stmt.where(evaluation_source if corpus == "evaluation" else ~evaluation_source)
     if source_type:
         stmt = stmt.where(KnowledgeChunk.chunk_metadata["source_type"].as_string() == source_type)
     stmt = stmt.order_by(KnowledgeChunk.embedding.cosine_distance(query_vector)).limit(candidate_n)
@@ -80,7 +82,7 @@ def _build_fulltext_web_query(query: str) -> str:
     return " OR ".join(terms)
 
 
-async def _fulltext_search(db: AsyncSession, query: str, candidate_n: int, source_type: Optional[str]):
+async def _fulltext_search(db: AsyncSession, query: str, candidate_n: int, source_type: Optional[str], corpus: str = "business"):
     """Postgres 全文检索候选池（jieba分词 + OR召回），按相关性排序。"""
     web_query = _build_fulltext_web_query(query)
     if not web_query:
@@ -92,6 +94,11 @@ async def _fulltext_search(db: AsyncSession, query: str, candidate_n: int, sourc
         WHERE content_tsv @@ websearch_to_tsquery('simple', :query)
     """
     params = {"query": web_query, "limit": candidate_n}
+    if corpus == "evaluation":
+        sql += " AND source LIKE :evaluation_prefix"
+    else:
+        sql += " AND source NOT LIKE :evaluation_prefix"
+    params["evaluation_prefix"] = "rag-eval://%"
     if source_type:
         sql += " AND metadata->>'source_type' = :source_type"
         params["source_type"] = source_type
@@ -110,6 +117,7 @@ async def search(
     agent_type: Optional[str] = None,
     log_query: bool = True,
     diagnostics: Optional[dict] = None,
+    corpus: Literal["business", "evaluation"] = "business",
 ) -> List[ChunkResult]:
     """
     混合检索：向量检索 + 全文检索，RRF 融合排序，可选 rerank 精排
@@ -123,13 +131,17 @@ async def search(
         agent_type: 调用方 Agent 类型，用于 RAG 可观测性归属
         log_query: 是否写入 RAG 查询日志；离线对比评测时可关闭，避免污染线上监控
         diagnostics: 可选的诊断信息输出字典，供离线评测识别 Rerank 成功或降级
+        corpus: 业务默认排除 rag-eval:// 来源；固定合成评测只检索该来源
     """
+    if corpus not in ("business", "evaluation"):
+        raise ValueError("corpus must be business or evaluation")
     start = time.monotonic()
 
     candidate_n = 20 if rerank else max(top_k, 10)
     if diagnostics is not None:
         diagnostics.clear()
         diagnostics.update({
+            "corpus": corpus,
             "rerank_requested": rerank,
             "rerank_applied": False,
             "rerank_fallback": False,
@@ -141,11 +153,11 @@ async def search(
     embedding_latency_ms = int((time.monotonic() - stage_start) * 1000)
 
     stage_start = time.monotonic()
-    vector_chunks = await _vector_search(db, query_vector, candidate_n, source_type)
+    vector_chunks = await _vector_search(db, query_vector, candidate_n, source_type, corpus)
     vector_search_latency_ms = int((time.monotonic() - stage_start) * 1000)
 
     stage_start = time.monotonic()
-    fulltext_rows = await _fulltext_search(db, query, candidate_n, source_type)
+    fulltext_rows = await _fulltext_search(db, query, candidate_n, source_type, corpus)
     fulltext_search_latency_ms = int((time.monotonic() - stage_start) * 1000)
 
     chunk_map = {c.id: c for c in vector_chunks}

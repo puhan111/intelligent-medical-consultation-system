@@ -79,6 +79,7 @@ async def run(cases_path: Path, top_k: int, rerank: bool) -> dict:
                 agent_type="rag_eval",
                 log_query=False,
                 diagnostics=diagnostics,
+                corpus="evaluation",
             )
             rankings[case.case_id] = [result.source for result in results]
             ranked_ids = {
@@ -126,6 +127,7 @@ async def run(cases_path: Path, top_k: int, rerank: bool) -> dict:
             "top_k": top_k,
             "rerank": rerank,
             "query_logging": False,
+            "corpus": "evaluation",
         },
         **evaluation,
     }

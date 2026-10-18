@@ -32,6 +32,7 @@ async def run_evaluation(db, *, top_k: int, rerank: bool) -> dict:
             db, query=case.query, top_k=top_k, source_type=case.source_type,
             rerank=rerank, agent_type="rag_eval", log_query=False,
             diagnostics=diagnostics,
+            corpus="evaluation",
         )
         rankings[case.case_id] = [item.source for item in results]
         diagnostics_by_case[case.case_id] = {
@@ -50,6 +51,6 @@ async def run_evaluation(db, *, top_k: int, rerank: bool) -> dict:
     return {
         "ready": True,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "configuration": {"dataset": "内置合成回归集", "rerank": rerank},
+        "configuration": {"dataset": "内置合成回归集", "rerank": rerank, "corpus": "evaluation"},
         **evaluation,
     }
